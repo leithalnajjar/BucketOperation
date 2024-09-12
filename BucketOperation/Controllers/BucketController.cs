@@ -95,7 +95,7 @@ public class BucketController : ControllerBase
         }
     }
     
-    [HttpGet("GetLatestObjects")]
+    [HttpGet("GetLatestObjects")]    
     public async Task<IActionResult> GetLatestObjects([FromQuery] string? bucketName)
     {
         try
