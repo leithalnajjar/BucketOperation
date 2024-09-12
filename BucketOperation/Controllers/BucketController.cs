@@ -5,6 +5,7 @@ using Minio;
 using Minio.ApiEndpoints;
 using Minio.DataModel;
 using Minio.DataModel.Args;
+using Minio.Exceptions;
 
 namespace BucketOperation.Controllers;
 
@@ -22,8 +23,20 @@ public class BucketController : ControllerBase
     [HttpGet("GetBuckets")]
     public async Task<IActionResult> GetBuckets()
     {
-        var buckets = await _minioClient.ListBucketsAsync();
-        return Ok(buckets);
+        try
+        {
+            var buckets = await _minioClient.ListBucketsAsync();
+            return Ok(buckets);
+        }
+        catch (AuthorizationException e)
+        {
+            return BadRequest("alsdkj");
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    
     }
 
     [HttpPost("CreateBucket")]
