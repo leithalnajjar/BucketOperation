@@ -149,5 +149,60 @@ public class BucketController : ControllerBase
             return BadRequest(e.Message);
         }
     }
-
+    
+    [HttpGet("ListIncompleteUploads")]
+    public async Task<IActionResult> ListIncompleteUploads([FromQuery] string bucketName)
+    {
+        try
+        {
+            var listIncompleteUploads = new ListIncompleteUploadsArgs()
+                .WithBucket(bucketName);
+            var result = _minioClient
+                .ListIncompleteUploadsEnumAsync(listIncompleteUploads)
+                .ConfigureAwait(false);
+            var uploads = new List<Upload>();
+            await foreach (var upload in result)
+            {
+                uploads.Add(upload);
+            }
+            return Ok(uploads);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpGet("GetBucketPolicy")]
+    public async Task<IActionResult> GetBucketPolicy([FromQuery] string bucketName)
+    {
+        try
+        {
+            var getPolicyArgs = new GetPolicyArgs()
+                .WithBucket(bucketName);
+            var policies = await _minioClient.GetPolicyAsync(getPolicyArgs);
+            return Ok(policies);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpPost("SetBucketPolicy")]
+    public async Task<IActionResult> SetBucketPolicy([FromBody] SetBucketPolicyDto dto)
+    {
+        try
+        {
+            var setPolicyArgs = new SetPolicyArgs()
+                .WithBucket(dto.BucketName)
+                .WithPolicy(dto.Policy);
+            await _minioClient.SetPolicyAsync(setPolicyArgs);
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
 }
