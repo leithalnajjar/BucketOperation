@@ -5,6 +5,8 @@ using Minio;
 using Minio.ApiEndpoints;
 using Minio.DataModel;
 using Minio.DataModel.Args;
+using Minio.DataModel.ILM;
+using Minio.DataModel.ObjectLock;
 using Minio.Exceptions;
 
 namespace BucketOperation.Controllers;
@@ -51,9 +53,58 @@ public class BucketController : ControllerBase
                 return BadRequest("Bucket is exists");
             }
 
+            
             var makeBucketArgs = new MakeBucketArgs()
-                .WithBucket(dto.Name);
+                .WithBucket(dto.Name)
+                .WithObjectLock();
             await _minioClient.MakeBucketAsync(makeBucketArgs);
+            if (dto.Versioning)
+            {
+                var setVersioningArgs = new SetVersioningArgs()
+                    .WithBucket(dto.Name)
+                    .WithVersioningEnabled();
+                await _minioClient.SetVersioningAsync(setVersioningArgs);
+            }
+
+            if (dto.ObjectLocking)
+            {
+                ObjectLockConfiguration objectLockConfiguration = null;
+                if (dto.Mode == null || dto.NumOfDays == null)
+                {
+                    objectLockConfiguration = new ObjectLockConfiguration();
+                }
+                else
+                {
+                    objectLockConfiguration = new ObjectLockConfiguration(dto.Mode ?? ObjectRetentionMode.COMPLIANCE, dto.NumOfDays ?? 365);
+                }
+                 
+                var setObjectLockConfigurationArgs = new SetObjectLockConfigurationArgs()
+                    .WithBucket(dto.Name)
+                    .WithLockConfiguration(objectLockConfiguration);
+                await _minioClient.SetObjectLockConfigurationAsync(setObjectLockConfigurationArgs);
+            }
+
+            var lifecycleRules = new List<LifecycleRule>()
+            {
+                new LifecycleRule()
+                {
+                    ID = "ExpireObjectsAfter5Minutes",
+                    Status = LifecycleRule.LifecycleRuleStatusEnabled,
+                    Expiration = new Expiration()
+                    {
+                        ExpiryDate = $"{new DateTimeOffset(DateTime.UtcNow.AddMinutes(2)).ToUnixTimeSeconds()}",
+                    },
+                    Filter = new RuleFilter()
+                    {
+                        Prefix = ""
+                    }
+                },
+            };
+            var lifecycleConfiguration = new LifecycleConfiguration(lifecycleRules);
+            var setBucketLifecycleArgs = new SetBucketLifecycleArgs()
+                .WithBucket(dto.Name)
+                .WithLifecycleConfiguration(lifecycleConfiguration);
+            await _minioClient.SetBucketLifecycleAsync(setBucketLifecycleArgs);
             return Ok();
         }
         catch (Exception e)
@@ -212,6 +263,21 @@ public class BucketController : ControllerBase
                 .WithPolicy(dto.Policy);
             await _minioClient.SetPolicyAsync(setPolicyArgs);
             return Ok();
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+    [HttpGet("GetVersioning")]
+    public async Task<IActionResult> GetVersioning([FromQuery] string bucketName)
+    {
+        try
+        {
+            var getVersingArgs = new GetVersioningArgs()
+                .WithBucket(bucketName);
+            var result = await _minioClient.GetVersioningAsync(getVersingArgs);
+            return Ok(result);
         }
         catch (Exception e)
         {
