@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Minio;
 using Minio.DataModel.Args;
 using Minio.DataModel.ObjectLock;
+using Minio.DataModel.Tags;
 
 namespace BucketOperation.Controllers;
 
@@ -183,7 +184,7 @@ public class ObjectController : ControllerBase
         }
     }
     
-    [HttpPost("GetLegalHold")]
+    [HttpGet("GetLegalHold")]
     public async Task<IActionResult> GetLegalHold(string bucketName, string objectName)
     {
         try
@@ -219,4 +220,56 @@ public class ObjectController : ControllerBase
         }
     }
 
+    [HttpPost("SetObjectTags")]
+    public async Task<IActionResult> SetObjectTags(string bucketName, string objectName,[FromBody] IDictionary<string, string> tags)
+    {
+        try
+        {
+            var tagging = new Tagging(tags, true);
+            var args = new SetObjectTagsArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName)
+                .WithTagging(tagging);
+            await _minioClient.SetObjectTagsAsync(args);
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpGet("GetObjectTags")]
+    public async Task<IActionResult> GetObjectTags(string bucketName, string objectName)
+    {
+        try
+        {
+            var args = new GetObjectTagsArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName);
+            var tagging = await _minioClient.GetObjectTagsAsync(args);
+            return Ok(tagging.Tags);
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
+    
+    [HttpDelete("RemoveObjectTags")]
+    public async Task<IActionResult> RemoveObjectTags(string bucketName, string objectName)
+    {
+        try
+        {
+            var args = new RemoveObjectTagsArgs()
+                .WithBucket(bucketName)
+                .WithObject(objectName); 
+            await _minioClient.RemoveObjectTagsAsync(args);
+            return Ok();
+        }
+        catch (Exception e)
+        {
+            return BadRequest(e.Message);
+        }
+    }
 }
